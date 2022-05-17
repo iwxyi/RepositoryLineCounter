@@ -174,23 +174,31 @@
            <height>16777215</height>
           </size>
          </property>
+         <property name="placeholderText">
+          <string>debug release *.exe</string>
+         </property>
         </widget>
        </item>
       </layout>
      </widget>
     </item>
     <item>
-     <spacer name="verticalSpacer_2">
-      <property name="orientation">
-       <enum>Qt::Vertical</enum>
-      </property>
-      <property name="sizeHint" stdset="0">
+     <widget class="QGroupBox" name="groupBox_4">
+      <property name="maximumSize">
        <size>
-        <width>20</width>
-        <height>40</height>
+        <width>16777215</width>
+        <height>120</height>
        </size>
       </property>
-     </spacer>
+      <property name="title">
+       <string>日志</string>
+      </property>
+      <layout class="QVBoxLayout" name="verticalLayout_5">
+       <item>
+        <widget class="QPlainTextEdit" name="logEdit"/>
+       </item>
+      </layout>
+     </widget>
     </item>
     <item>
      <widget class="QPushButton" name="startButton">
