@@ -23,6 +23,8 @@ protected:
 
 
 private slots:
+    void on_pushButton_clicked();
+
     void on_addRepositoryButton_clicked();
 
     void on_removeRepositoryButton_clicked();

@@ -39,6 +39,29 @@ void MainWindow::closeEvent(QCloseEvent *e)
     QMainWindow::closeEvent(e);
 }
 
+void MainWindow::on_pushButton_clicked()
+{
+    QString path = QFileDialog::getExistingDirectory(this, "选择 Git 安装目录");
+    if (path.isEmpty())
+        return ;
+
+    QDir dir(path);
+    if (dir.exists("bin"))
+    {
+        path = dir.absoluteFilePath("bin");
+        dir = QDir(path);
+    }
+
+    if (!dir.exists("git.exe"))
+    {
+
+        return ;
+    }
+
+    ui->gitPathEdit->setText(path);
+    settings.setValue("path/git_bin", path);
+}
+
 void MainWindow::on_addRepositoryButton_clicked()
 {
     QString lastPath = settings.value("path/selected_repository").toString();
@@ -105,6 +128,7 @@ void MainWindow::restoreConfigs()
         ui->repositoriesListWidget->addItem(item);
     }
 
+    ui->gitPathEdit->setText(settings.value("path/git_bin").toString());
     ui->sinceTimeLineEdit->setText(settings.value("statistic/since").toString());
     ui->untilTimeLineEdit->setText(settings.value("statistic/until").toString());
     ui->authorsLineEdit->setText(settings.value("statistic/authors").toString());
@@ -133,6 +157,18 @@ void MainWindow::on_excludesTextEdit_textChanged()
 
 void MainWindow::on_startButton_clicked()
 {
+    if (ui->gitPathEdit->text().isEmpty())
+    {
+        QMessageBox::warning(this, "需要获取 Git 路径", "请先配置 Git/bin 所在的文件夹");
+        return ;
+    }
+    if (!QDir(ui->gitPathEdit->text()).exists("bash.exe"))
+    {
+        QMessageBox::warning(this, "找不到 bash.exe", "文件 " + QDir(ui->gitPathEdit->text()).absoluteFilePath("bash.exe") + " 不存在！");
+        return ;
+    }
+    QString bashPath = QDir(ui->gitPathEdit->text()).absoluteFilePath("bash.exe");
+
     // 检验时间
     QString since = ui->sinceTimeLineEdit->text();
     if (!since.contains(QRegularExpression("^\\d{4}-\\d{1,2}-\\d{1,2}$")))
@@ -219,7 +255,7 @@ void MainWindow::on_startButton_clicked()
             ui->logEdit->appendPlainText(cmd);
             QProcess p;
             p.setWorkingDirectory(repositoryList.at(i));
-            p.start("A:\\Git\\bin\\bash.exe", QStringList() << "-c" << cmd);
+            p.start(bashPath, QStringList() << "-c" << cmd);
             if (p.waitForFinished(30000))
             {
                 QString result = p.readAll();
@@ -259,5 +295,6 @@ void MainWindow::on_startButton_clicked()
     }
     qInfo() << "--------- ^^^^^^ ----------";
 }
+
 
 
