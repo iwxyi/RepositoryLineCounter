@@ -17,6 +17,10 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
 
+    connect(this, &MainWindow::progressChanged, this, [=](int current, int total) {
+
+    });
+
     restoreConfigs();
 }
 
@@ -132,7 +136,8 @@ void MainWindow::restoreConfigs()
     ui->sinceTimeLineEdit->setText(settings.value("statistic/since").toString());
     ui->untilTimeLineEdit->setText(settings.value("statistic/until").toString());
     ui->authorsLineEdit->setText(settings.value("statistic/authors").toString());
-    ui->excludesTextEdit->setPlainText(settings.value("statistic/excludes").toString());
+    ui->excludesLineEdit->setText(settings.value("statistic/excludes").toString());
+    ui->paramsTextEdit->setPlainText(settings.value("statistic/params").toString());
 }
 
 void MainWindow::on_sinceTimeLineEdit_editingFinished()
@@ -148,11 +153,6 @@ void MainWindow::on_untilTimeLineEdit_editingFinished()
 void MainWindow::on_authorsLineEdit_editingFinished()
 {
     settings.setValue("statistic/authors", ui->authorsLineEdit->text());
-}
-
-void MainWindow::on_excludesTextEdit_textChanged()
-{
-    settings.setValue("statistic/excludes", ui->excludesTextEdit->toPlainText());
 }
 
 void MainWindow::on_startButton_clicked()
@@ -207,10 +207,14 @@ void MainWindow::on_startButton_clicked()
     }
 
     // 获取exclude
-    QStringList excludes = ui->excludesTextEdit->toPlainText().split(" ");
+    QStringList excludes = ui->excludesLineEdit->text().split(" ", QString::SkipEmptyParts);
     for (int i = 0; i < excludes.size(); i++)
         excludes[i] = "\":(exclude)" + excludes.at(i) + "\"";
     QString expExclude = excludes.join(" ");
+
+    // 其余命令
+    QStringList params = ui->paramsTextEdit->toPlainText().split("\n", QString::SkipEmptyParts);
+    QString expCustom = params.join(" ");
 
 
     // 遍历仓库
@@ -238,25 +242,34 @@ void MainWindow::on_startButton_clicked()
 
     // 开始统计
     ui->startButton->setText("正在统计");
+    ui->progressBar->setRange(0, repositoryList.size() * expAuthorList.size());
+    int progressCount = 0;
     for (int i = 0; i < repositoryList.size(); i++) // 遍历仓库
     {
 
         for (int j = 0; j < expAuthorList.size(); j++) // 遍历开发者
         {
             QString script = "awk '{ add += $1; subs += $2; loc += $1 - $2 } END { printf \"%s,%s,%s\", add, subs, loc }'";
-            QString cmd = QString("git log %1 %2 %3 --pretty=tformat: --numstat -- . %4 | %5")
+            QString cmd = QString("git log %1 %2 %3 --pretty=tformat: --numstat -- . %4 %6 | %5")
                     .arg(expAuthorList.at(j))
                     .arg(expSince)
                     .arg(expUntil)
                     .arg(expExclude)
-                    .arg(script);
+                    .arg(script)
+                    .arg(expCustom);
 
 //            qInfo() << cmd;
             ui->logEdit->appendPlainText(cmd);
             QProcess p;
             p.setWorkingDirectory(repositoryList.at(i));
             p.start(bashPath, QStringList() << "-c" << cmd);
-            if (p.waitForFinished(30000))
+            QEventLoop loop;
+            connect(&p,static_cast<void(QProcess::*)(int,QProcess::ExitStatus)>(&QProcess::finished),
+                    &loop, &QEventLoop::quit);
+            loop.exec();//可操作界面
+            // loop.exec(QEventLoop::ExcludeUserInputEvents);//不可操作界面
+            // if (p.waitForFinished(30000))
+            if (p.error() == QProcess::ProcessError::UnknownError)
             {
                 QString result = p.readAll();
                 qInfo() << QDir(repositoryList.at(i)).dirName() << displayNames.at(j) << result;
@@ -281,6 +294,7 @@ void MainWindow::on_startButton_clicked()
             {
                 qWarning() << "QProcess.error:" << p.error() << p.readAllStandardError();
             }
+            ui->progressBar->setValue(++progressCount);
         }
     }
     ui->startButton->setText("开始统计");
@@ -296,5 +310,20 @@ void MainWindow::on_startButton_clicked()
     qInfo() << "--------- ^^^^^^ ----------";
 }
 
+void MainWindow::on_repositoriesListWidget_itemClicked(QListWidgetItem *item)
+{
+    if (!item)
+        return ;
+    bool checked = item->data(Qt::CheckStateRole).toBool();
+    item->setData(Qt::CheckStateRole, checked ? Qt::Unchecked : Qt::Checked);
+}
 
+void MainWindow::on_excludesLineEdit_editingFinished()
+{
+    settings.setValue("statistic/excludes", ui->excludesLineEdit->text());
+}
 
+void MainWindow::on_paramsTextEdit_textChanged()
+{
+    settings.setValue("statistic/params", ui->paramsTextEdit->toPlainText());
+}

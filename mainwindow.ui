@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>433</width>
-    <height>615</height>
+    <width>397</width>
+    <height>575</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -170,6 +170,24 @@
          </item>
         </layout>
        </item>
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayout_5">
+         <item>
+          <widget class="QLabel" name="label_5">
+           <property name="text">
+            <string>排  除</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLineEdit" name="excludesLineEdit">
+           <property name="placeholderText">
+            <string>debug release *.txt</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
       </layout>
      </widget>
     </item>
@@ -184,15 +202,15 @@
       <property name="maximumSize">
        <size>
         <width>16777215</width>
-        <height>120</height>
+        <height>90</height>
        </size>
       </property>
       <property name="title">
-       <string>排除</string>
+       <string>自定义参数</string>
       </property>
       <layout class="QVBoxLayout" name="verticalLayout_2">
        <item>
-        <widget class="QPlainTextEdit" name="excludesTextEdit">
+        <widget class="QPlainTextEdit" name="paramsTextEdit">
          <property name="sizePolicy">
           <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
            <horstretch>0</horstretch>
@@ -206,7 +224,8 @@
           </size>
          </property>
          <property name="placeholderText">
-          <string>debug release *.exe</string>
+          <string>&quot;:(exclude)*.md&quot;
+&quot;:(exclude)*.log&quot;</string>
          </property>
         </widget>
        </item>
@@ -232,6 +251,13 @@
      </widget>
     </item>
     <item>
+     <widget class="QProgressBar" name="progressBar">
+      <property name="value">
+       <number>0</number>
+      </property>
+     </widget>
+    </item>
+    <item>
      <widget class="QPushButton" name="startButton">
       <property name="text">
        <string>统计</string>
@@ -245,7 +271,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>433</width>
+     <width>397</width>
      <height>23</height>
     </rect>
    </property>

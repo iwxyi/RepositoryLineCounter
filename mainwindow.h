@@ -37,13 +37,20 @@ private slots:
 
     void on_authorsLineEdit_editingFinished();
 
-    void on_excludesTextEdit_textChanged();
-
     void on_startButton_clicked();
+
+    void on_repositoriesListWidget_itemClicked(QListWidgetItem *item);
+
+    void on_excludesLineEdit_editingFinished();
+
+    void on_paramsTextEdit_textChanged();
 
 private:
     void saveRepositories();
     void restoreConfigs();
+
+signals:
+    void progressChanged(int current, int total);
 
 private:
     Ui::MainWindow *ui;
