@@ -351,6 +351,8 @@ void MainWindow::on_startButton_clicked()
         for (int j = 0; j < displayNames.size(); j++)
         {
             QList<int>& vals = statisticRepoResults[repo][displayNames.at(j)];
+            if (vals.empty())
+                continue;
             for (int k = 0; k < VAL_NUM; k++)
             {
                 table->setItem(j, k, new QTableWidgetItem(QString::number(vals[k])));
