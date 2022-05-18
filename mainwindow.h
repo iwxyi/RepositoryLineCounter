@@ -56,7 +56,7 @@ private:
     Ui::MainWindow *ui;
     QSettings settings;
 
-    QMap<QString, QMap<QString, QList<int>>> statisticResults;
+    QMap<QString, QMap<QString, QList<int>>> statisticRepoResults;
     QMap<QString, QList<int>> statisticUserResults;
 };
 #endif // MAINWINDOW_H

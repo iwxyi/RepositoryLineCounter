@@ -9,6 +9,10 @@
 #include <QDateTime>
 #include <QDebug>
 #include <QClipboard>
+#include <QScrollArea>
+#include <QTableWidget>
+#include <QScrollBar>
+#include <QHeaderView>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -157,6 +161,9 @@ void MainWindow::on_authorsLineEdit_editingFinished()
 
 void MainWindow::on_startButton_clicked()
 {
+    const int VAL_NUM = 3;
+
+    /// 解析配置
     if (ui->gitPathEdit->text().isEmpty())
     {
         QMessageBox::warning(this, "需要获取 Git 路径", "请先配置 Git/bin 所在的文件夹");
@@ -189,7 +196,7 @@ void MainWindow::on_startButton_clicked()
 
 
     // 获取姓名
-    statisticResults.clear();
+    statisticRepoResults.clear();
     statisticUserResults.clear();
     QStringList expAuthorList;
     QStringList namess = ui->authorsLineEdit->text().split(",", QString::SkipEmptyParts);
@@ -218,7 +225,7 @@ void MainWindow::on_startButton_clicked()
 
 
     // 遍历仓库
-    QStringList repositoryList;
+    QStringList repositoryList, repositoryNameList;
     for (int i = 0; i < ui->repositoriesListWidget->count(); i++)
     {
         QListWidgetItem* item = ui->repositoriesListWidget->item(i);
@@ -228,6 +235,7 @@ void MainWindow::on_startButton_clicked()
             if (!QDir(path).exists())
                 continue;
             repositoryList.append(path);
+            repositoryNameList.append(QDir(path).dirName());
         }
     }
 
@@ -240,15 +248,16 @@ void MainWindow::on_startButton_clicked()
     if (expAuthorList.empty() || repositoryList.empty())
         return ;
 
-    // 开始统计
+    /// 开始统计
     ui->startButton->setText("正在统计");
     ui->progressBar->setRange(0, repositoryList.size() * expAuthorList.size());
     int progressCount = 0;
     for (int i = 0; i < repositoryList.size(); i++) // 遍历仓库
     {
-
+        QString repo = repositoryNameList.at(i);
         for (int j = 0; j < expAuthorList.size(); j++) // 遍历开发者
         {
+            QString user = displayNames.at(j);
             QString script = "awk '{ add += $1; subs += $2; loc += $1 - $2 } END { printf \"%s,%s,%s\", add, subs, loc }'";
             QString cmd = QString("git log %1 %2 %3 --pretty=tformat: --numstat -- . %4 %6 | %5")
                     .arg(expAuthorList.at(j))
@@ -264,31 +273,32 @@ void MainWindow::on_startButton_clicked()
             p.setWorkingDirectory(repositoryList.at(i));
             p.start(bashPath, QStringList() << "-c" << cmd);
             QEventLoop loop;
-            connect(&p,static_cast<void(QProcess::*)(int,QProcess::ExitStatus)>(&QProcess::finished),
-                    &loop, &QEventLoop::quit);
+            connect(&p,static_cast<void(QProcess::*)(int,QProcess::ExitStatus)>(&QProcess::finished), &loop, &QEventLoop::quit);
             loop.exec();//可操作界面
             // loop.exec(QEventLoop::ExcludeUserInputEvents);//不可操作界面
             // if (p.waitForFinished(30000))
             if (p.error() == QProcess::ProcessError::UnknownError)
             {
                 QString result = p.readAll();
-                qInfo() << QDir(repositoryList.at(i)).dirName() << displayNames.at(j) << result;
-                ui->logEdit->appendPlainText(result);
+                qInfo() << repo << user << result;
+                ui->logEdit->appendPlainText(repo + " " + user + " " + result);
 
                 QStringList nums = result.split(",");
-                if (nums.size() != 3)
+                if (nums.size() != VAL_NUM)
                 {
                     qWarning() << "无效的Git结果";
                     continue;
                 }
 
-                long long added = nums.at(0).toLongLong();
-                long long removed = nums.at(1).toLongLong();
-                long long local = nums.at(2).toLongLong();
-                QList<int>& vals = statisticUserResults[displayNames.at(j)];
-                vals[0] += added;
-                vals[1] += removed;
-                vals[2] += local;
+                QList<int>& sums = statisticUserResults[user];
+                QList<int> vals;
+                for (int k = 0; k < VAL_NUM; k++)
+                {
+                    sums[k] += nums.at(k).toInt();
+                    vals.append(nums.at(k).toInt());
+                }
+
+                statisticRepoResults[repo][user] = vals;
             }
             else
             {
@@ -299,15 +309,68 @@ void MainWindow::on_startButton_clicked()
     }
     ui->startButton->setText("开始统计");
 
-    // 显示结果
+    /// 打印结果
     qInfo() << "--------- result ----------";
     for (int i = 0; i < displayNames.size(); i++)
     {
         QList<int> vals = statisticUserResults[displayNames.at(i)];
         qInfo() << displayNames.at(i) << vals;
-        ui->logEdit->appendPlainText(QString("%1: %2 %3 %4").arg(displayNames.at(i)).arg(vals[0]).arg(vals[1]).arg(vals[2]));
+        ui->logEdit->appendPlainText(QString("total %1: %2 %3 %4").arg(displayNames.at(i)).arg(vals[0]).arg(vals[1]).arg(vals[2]));
     }
     qInfo() << "--------- ^^^^^^ ----------";
+
+    // 添加总计到输出中
+    if (repositoryList.size() > 1)
+    {
+        repositoryNameList.append("[total]");
+        statisticRepoResults["[total]"] = statisticUserResults;
+    }
+
+    /// 输出表格
+    QDialog* dialog = new QDialog(this);
+    QVBoxLayout* dialogLayout = new QVBoxLayout(dialog);
+    QScrollArea* area = new QScrollArea(dialog);
+    dialogLayout->addWidget(area);
+    QWidget* contentWidget = new QWidget(dialog);
+    area->setWidget(contentWidget);
+    QVBoxLayout* vlayout = new QVBoxLayout(contentWidget);
+
+    // 遍历仓库，打印每个仓库每个人员的代码量
+    for (int i = 0; i < repositoryNameList.size(); i++)
+    {
+        QString repo = repositoryNameList.at(i);
+        vlayout->addWidget(new QLabel(repo, dialog));
+
+        QTableWidget* table = new QTableWidget(dialog);
+        vlayout->addWidget(table);
+        table->setRowCount(displayNames.size());
+        table->setColumnCount(VAL_NUM);
+        table->setHorizontalHeaderLabels({"创建行", "删除行", "有效行"});
+        table->setVerticalHeaderLabels(displayNames);
+
+        for (int j = 0; j < displayNames.size(); j++)
+        {
+            QList<int>& vals = statisticRepoResults[repo][displayNames.at(j)];
+            for (int k = 0; k < VAL_NUM; k++)
+            {
+                table->setItem(j, k, new QTableWidgetItem(QString::number(vals[k])));
+            }
+        }
+
+        table->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+        table->verticalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+        table->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
+        table->adjustSize();
+        table->setFixedHeight(table->horizontalHeader()->height() * (displayNames.size() + 1) + table->contentsMargins().top() + table->contentsMargins().bottom());
+    }
+
+    // 打印最终代码量
+
+    contentWidget->adjustSize();
+    dialog->setWindowTitle("统计结果");
+    dialog->setGeometry(this->geometry());
+    dialog->exec();
+    dialog->deleteLater();
 }
 
 void MainWindow::on_repositoriesListWidget_itemClicked(QListWidgetItem *item)
